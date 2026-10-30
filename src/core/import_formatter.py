@@ -191,12 +191,27 @@ def aggregate_list(series) -> str | None:
     return ",".join(vals) if len(vals) else None
 
 
+DETAILS_ANGLE_PATTERN = re.compile(r"detail[s]?[\s_\-]*angle", re.I)
+IMAGE_PATTERN = re.compile(r"image|img|cdn", re.I)
+URL_PATTERN = re.compile(r"url", re.I)
+
+
 def infer_column_type(col_name: str) -> str:
-    """Infer the data type for a column based on its name."""
-    image_patterns = ["image", "img", "url", "cdn"]
-    for pattern in image_patterns:
-        if re.search(pattern, col_name, re.I):
-            return "image"
+    """
+    Infer the Types-sheet data type for a column based on its name.
+
+    - "Details angle" columns -> image
+    - Columns with image / img / cdn in the name -> image
+    - Other columns with url in the name -> url
+    - Everything else -> string
+    """
+    name = str(col_name)
+    if DETAILS_ANGLE_PATTERN.search(name):
+        return "image"
+    if IMAGE_PATTERN.search(name):
+        return "image"
+    if URL_PATTERN.search(name):
+        return "url"
     return "string"
 
 
