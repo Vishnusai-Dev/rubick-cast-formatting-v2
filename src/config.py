@@ -11,6 +11,7 @@ class AppSettings:
     default_exclude_sheets: str = "masterdata"
     input_generator_output: str = "Input_Generated.xlsx"
     export_output: str = "Formatted_Output.xlsx"
+    export_template: str = "templates/rubick_os_template.xlsx"
 
 
 def get_settings() -> AppSettings:

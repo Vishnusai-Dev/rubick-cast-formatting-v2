@@ -4,7 +4,7 @@ Rubick CAST Formatting - Streamlit Application
 Two modes:
   1. Input Generator - builds the Types + Values input workbook from a Style file
      (required) and an optional SKU / size chart file.
-  2. Export Format   - reindexes the input to the uploaded Rubick OS template.
+  2. Export Format   - reindexes one uploaded file to the bundled Rubick OS template.
 """
 
 from io import BytesIO
@@ -158,10 +158,10 @@ def render_landing_page():
             """
             <div class="mode-card export-card">
                 <h2>📤 Export Format</h2>
-                <p>Reindex your data to the column structure of the Rubick OS template.</p>
+                <p>Reindex your data to the Rubick OS template in one step.</p>
                 <ul>
                     <li>Upload your data file</li>
-                    <li>Upload the Rubick OS template</li>
+                    <li>Rubick OS template applied automatically</li>
                     <li>Download formatted output</li>
                 </ul>
             </div>
@@ -349,14 +349,14 @@ def render_export_guide():
     with st.expander("📘 How should the input be?", expanded=True):
         st.markdown(
             """
-            **Two files:** your data file and the **Rubick OS template**.
+            **One file:** your data file. It is reindexed to the Rubick OS template automatically.
 
-            - Data file: header row in row 1; only the **first sheet** is read.
+            - Header row in row 1; only the **first sheet** is read.
             - Column headers must match the template headers **exactly** (spelling, spaces, capitalisation).
             - Matched columns are placed in template order. Template columns missing from your file are added blank.
             - Columns not in the template are dropped, unless *Preserve unknown columns* is ticked
               (they are then added after the template columns).
-            - Example data file (header names must follow your template; the sample below is illustrative):
+            - Example data file (header names must follow the template; the sample below is illustrative):
             """
         )
         st.dataframe(EXAMPLE_EXPORT_INPUT, hide_index=True, use_container_width=True)
@@ -403,25 +403,22 @@ def render_export_page():
     settings = get_settings()
     header_with_back(
         "📤 Export Format",
-        "Reindex your data to the column structure of the Rubick OS template.",
+        "Upload your data file and download it reindexed to the Rubick OS template.",
     )
+
+    template_path = Path(__file__).parent / settings.export_template
+    if not template_path.is_file():
+        st.error(f"Rubick OS template not found at {settings.export_template}.")
+        st.stop()
+    template_bytes = template_path.read_bytes()
 
     render_export_guide()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        input_file = st.file_uploader(
-            "Input Excel File",
-            type=["xlsx", "xls"],
-            key="export_input",
-        )
-    with col2:
-        template_file = st.file_uploader(
-            "Rubick OS Template",
-            type=["xlsx", "xls"],
-            key="export_template",
-            help="Upload the Rubick OS template. Its column headers define the output format.",
-        )
+    input_file = st.file_uploader(
+        "Input Excel File",
+        type=["xlsx", "xls"],
+        key="export_input",
+    )
 
     preserve_unknown = st.checkbox(
         "Preserve unknown columns",
@@ -433,12 +430,9 @@ def render_export_page():
     if input_file and input_file.size > max_size:
         st.error(f"Input file exceeds maximum size ({settings.max_file_size_mb}MB)")
         input_file = None
-    if template_file and template_file.size > max_size:
-        st.error(f"Template file exceeds maximum size ({settings.max_file_size_mb}MB)")
-        template_file = None
 
-    if input_file and template_file:
-        render_column_match(input_file.getvalue(), template_file.getvalue(), preserve_unknown)
+    if input_file:
+        render_column_match(input_file.getvalue(), template_bytes, preserve_unknown)
 
         output_filename = st.text_input(
             "Output Filename",
@@ -453,8 +447,8 @@ def render_export_page():
             result = process_export(
                 input_file_data=input_file.getvalue(),
                 input_filename=input_file.name,
-                template_file_data=template_file.getvalue(),
-                template_filename=template_file.name,
+                template_file_data=template_bytes,
+                template_filename=template_path.name,
                 output_filename=output_filename,
                 preserve_unknown_columns=preserve_unknown,
             )
@@ -478,8 +472,6 @@ def render_export_page():
                 )
             else:
                 st.error(f"Error: {result.error_message}")
-    elif input_file or template_file:
-        st.info("Upload both the input file and the Rubick OS template to continue.")
 
 
 # --------------------------------------------------------------------------- #
